@@ -1,0 +1,917 @@
+OpenStack commands
+
+
+Day 1
+
+First step for lab - not in documentation
+
+Added sourcing /home/student/stackrc to bashrc - test later
+
+ssh stack@directory
+source stackrc
+ironic node-list
+	- check if node 'Power state' are 'ON'
+	- if set to 'None' then do the following
+		ironic node-set-power-state <name> on
+		ironic node-set-power-state controller on
+		ironic node-set-power-state compute1 on
+		ironic node-set-power-state ceph on
+	- do for all nodes
+	- check 'power state' again
+		ironic node-list
+	- If node maintenance mode is set to true - set to false
+		ironic node-set-maintenance <name> false
+		ironic node-set-maintenance controller false
+		ironic node-set-maintenance computer1 false
+		ironic node-set-maintenance ceph false
+
+
+# Creates image from image file
+openstack image create --disk-format qcow2 -- container-format bare --public --file small.img small
+
+# Creates public network named external
+neutron net-create public --router:external
+
+# Create subnets for the public network named external
+neutron subnet-create public 172.25.250.0/24  --name public_subnet --disable-dhcp --allocation-pool start=172.25.250.130,end=172.25.250.199 --gateway 172.25.250.254 --dns-nameserver 172.25.250.254
+
+# Creates internal VXLAN-based tenant network and subnet
+neutron net-create internal
+
+# Creates private subnet on designated network with DNS
+neutron subnet-create internal 192.168.0.0/24 --dns-nameserver 172.25.250.254 --name internal_subnet
+
+# To create floating IPs - you need an internal router and an external network to be attached to the router
+
+## Creates router internal_router
+neutron router-create internal_router
+
+## Sets internal_router to public
+neutron router-gateway-set internal_router public
+
+## Adds interface for internal_router internal_subnet
+neutron router-interface-add internal_router internal_subnet
+
+# Creates a keypair
+openstack keypair create devkey > devkey.pem ; chmod 600 devkey.pem
+
+# Create SecurityGroup call devsg and allow port 22 and icmp
+openstack security group create devsg ; openstack security group rule create --proto tcp --src-ip 0.0.0.0/0 --dst-port 22 devsg ; openstack security group rule create --proto icmp --src-ip 0.0.0.0/0 devsg
+
+# Launch Nova instance with devsg etc.
+openstack server create --image small --flavor m1.small --security-group devsg --key-name devkey --nic net-id=internal --wait devinstance-overcloud
+
+# Create floating IP from public pool
+openstack ip floating create public
+
+# Attach floating IP to devinstance
+openstack ip floating add 172.25.250.131 devinstance-overcloud
+
+# Check that it was attached
+openstack ip floating list
+
+# Test login
+ssh -i devkey.pem cloud-user@172.25.250.131
+
+#################################
+#################################
+#################################
+#################################
+
+Day 2
+
+# Get admin token for keystone from controller
+grep admin_token /etc/keystone/ keystone.conf
+token = fgJqMh4HxVjVEaUTYeMThnkX
+
+# Show keystone endpoint - including admin url
+openstack endpoint show keystone
+
+# Use token obtained to get user list
+openstack --os-token fgJqMh4HxVjVEaUTYeMThnkX --os-url http://172.25.250.21:35357/v2.0/ user list
+
+
+LAB - Managing OpenStack Projects -pg 65
+
+# help
+openstack help project
+openstack help project create
+openstack help project show
+nova help quota-show
+
+# create testproject
+openstack project create testproject
+
+# show details of test project - in order to get the project id
+openstack project show testproject
+
+# create secondproject
+openstack project create secondproject
+
+# show details of secondproject - in order to get the project id
+openstack project show secondproject
+
+# show details of secondproject using the obtained tenantid
+nova quota-show --tenant <tenant id>
+
+# Update the cores for the project and set to 10
+nova quota-update --cores 10 <tenant id>
+
+# check if the core value updated
+nova quota-show --tenant <tenant id>
+
+# Delete project oldproject
+openstack project delete oldproject
+
+
+LAB - Managing OpenStack Users and Roles - pg 72
+
+# help
+openstack help user
+openstack help user create
+openstack help role
+openstack help role add
+openstack help user set
+
+# create project with user user1, project1, and pw redhat
+openstack user create --project project1 --password redhat user1
+
+# add amdinuser to project1
+openstack user create --project project1 --password redhat adminuser
+
+# list roles
+openstack role list
+
+# add admin role to adminuser in project1
+openstack role add --project project1 --user adminuser admin
+
+# add laboperator role to user1 in project1
+openstack role add --project project1 --user user1 laboperator
+
+# list users
+openstack user list
+openstack user list -f csv
+
+# delete user3
+openstack user delete user3
+
+# change password of user4 to custompassword
+openstack user set --password custompassword user4
+
+# list users in project1
+openstack user list --project project1
+
+
+LAB - Verifying Keystone Users, Roles, Projects
+
+# list openstack users
+openstack user list
+
+# list openstack roles
+openstack role list
+
+# list openstack projects
+openstack project list
+
+# list users associated to project
+openstack user list --project project1
+
+# list roles associated to project by user
+openstack user role list --project project1 user1
+
+# issue token under current sourced user
+openstack token issue
+
+
+LAB - Managing Keystone Identity Service
+
+# source the overcloudrc in student home
+source /home/student/overcloudrc
+
+# create two users - user1 and user2
+openstack user create --password redhat user1
+openstack user create --password redhat user2
+
+# Create project1
+openstack project create project1
+
+# configure user1 as admin of project1
+openstack role add --project project1 --user user1 admin
+
+# configure user2 as a member to project1 with no admin rights
+openstack role add --project project1 --user user2 _member_
+
+# create overcloudrc files for user1 and user2 based off of overcloudrc
+cp overcloudrc overcloudrc_user1
+cp overcloudrc overcloudrc_user2
+
+# Modify the key pair quota for project1 and set the value to 2
+nova quota-show --tenant project1
+nova quota-update --key-pair 2 project1
+
+# verify that user1 can list users and user2 can not
+source overcloudrc_user1
+openstack user list --project project1
+source overcloudrc_user2
+openstack user list --project project1
+
+# Delete project2
+openstack project delete project2
+
+# Delete user3
+openstack user delete user3
+
+
+LAB - Managing Flavors pg 98
+
+# list openstack flavors (e.g. instance types)
+openstack flavor list
+
+# add never flavor called devflavor
+openstack flavor create --vcpus 1 --ram 1024 --disk 10 --ephemeral 2 --swap 512 devflavor
+
+# show details of devflavor
+openstack flavor show devflavor
+
+# delete seconddevflavor 
+openstack flavor delete devsecondflavor
+
+
+LAB - Verifying Flavor Functionality
+
+# list flavors
+openstack flavor list
+
+# check detatils of flavor
+openstack flavor show devflavor
+
+# check image list
+openstack image list
+
+# show details of devimage
+openstack image show devimage
+openstack image show <image id>
+
+# list keypairs
+openstack keypair list
+
+# list networks
+openstack network list
+
+# create new instance named devvm from devimage, devkeypair, devnet network and, devflavor flavor
+openstack server create --flavor devflavor --key-name devkeypair --image devimage --nic net-id=devnet devvm
+
+# list openstack servers
+openstack server list
+
+# allocate new floating IP from the 'ext' pool
+openstack ip floating create ext
+
+# associate floating IP to the devvm instance
+openstack ip floating add 172.25.250.27 devvm
+
+
+LAB - Customizing Flavor Properties - pg 108
+
+# show instance and check flavor
+openstack server show dev_instance | grep flavor
+
+# Terminate instance
+openstack server delete dev_instance
+
+# Tune disk I/O quotas - max disk write
+openstack flavor set m2.small --property quota:disk_write_bytes_sec=10485760
+
+# Tune disk I/O quotas - max disk read
+openstack flavor set m2.small --property quota:disk_read_bytes_sec=10485760
+
+# Launch instance with new settings
+openstack server create --image small --flavor m2.small -- key-name dev_key1 --nic net-id=dev_privnet extraspecs_instance --wait
+
+# Add floating IP to new instance from last step
+openstack ip floating add 172.25.250.51 extraspecs_instance
+
+# Test the write speed of the instance (need to ssh first)
+dd if=/dev/zero of=anof bs=512MB count=1 oflag=direct
+
+# Verify the read speed
+## install hdparm
+sudo yum -y install hdparm
+sudo hdparm -t --direct /dev/vda1
+
+
+LAB - Managing Flavor Access
+
+# create new project
+openstack project create flavor-access
+
+# create new user with access to project created in last step
+openstack user create --project flavor-access --password redhat user1
+
+# create overcloudrc for user1
+cp overcloudrc overcloudrc_user1
+
+# configure nova to allow non-admin users to create and manage flavors
+ssh stack@director
+source stackrc
+openstack server list
+## connect to overcloud controller
+ssh heat-admin@172.25.250.24
+## sudo privileges to adjust the policy.json file
+sudo vi /etc/nova/policy.json
+replacing "os_compute_api:os-flavor-manage": "rule:admin_api", with"os_compute_api:os-flavor-manage": ""
+## restart nova api service
+sudo systemctl restart openstack-nova-api
+
+# go back to workstation
+source overcloudrc_user1
+
+# create flavor as user1
+openstack flavor create --private newflavor --vcpus 1 --ram 1024 --disk 10 --ephemeral 2 --swap 512
+
+# re-source overcloudrc so that we can adjust the latest flavor so that it is only visible and usable with the flavor-access project
+source overcloudrc
+openstack project list
+## list private flavors
+openstack flavor list --private
+nova flavor-access-add <flavor ip> <tenant id>
+
+# re-source the user1 openstackrc
+source overcloudrc_user1
+
+# list private flavors for user1
+openstack flavor list --private
+
+# display flavor with devtest user
+source /home/student/overcloudrc_devtest
+openstack flavor list    # ensure new flavor not returned
+
+
+LAB - Managing Flavors - pg 121
+
+# source overcloudrc
+source overcloudrc
+
+# list flavors
+openstack flavor list
+
+# Create new flavor called prodflavor 1vcpu, 2048 mg ram, 15 GB root, 3 GB ephemeral, 512 MB swap
+
+openstack flavor create --vcpus 1 --ram 2048 --disk 15 --ephemeral 3 --swap 512 prodflavor
+
+# show flavor
+openstack flavor show prodflavor
+
+# list images
+openstack image list
+
+# show details of image 
+openstack image show <uuid>
+
+# list keypairs
+openstack keypair list
+
+# list networks
+openstack network list 
+
+# create new instance called 'prodvm' from 'prodflavor', use 'prodkeypair', image 'prodimage' and network 'prodnet'
+
+openstack server create --image prodimage --flavor prodflavor -- key-name prodkeypair --nic net-id=prodnet prodvm --wait
+
+openstack server list
+
+# Allocate a floating IP to the prod instance from ext pool
+openstack ip floating create ext
+openstack ip floating add 172.25.250.27 prodvm
+openstack ip floating list
+
+# ssh to prod vm with keypair
+ssh -i lab/prodkeypair.pem cloud-user@172.25.250.27
+
+# Delete the flavor prodsecondflavor
+openstack flavor delete prodsecondflavor
+
+
+LAB - Managing Networks and Subnets - pg 135
+
+# Create a network and subnet, update the network and subnet, delete the network and subnet
+
+# source overcloudrc
+source overcloudrc
+
+# create the public network
+neutron net-create dev_pubnet
+
+# update the network and declare it an external network
+neutron net-update --router:external dev_pubnet
+
+# create a subnet for the external network
+neutron subnet-create dev_pubnet 172.25.250.0/24 --name dev_pubsunet --disable-dhcp --allocation-pool start=172.25.250.130,end=172.25.250.199 --gateway 172.25.250.254
+
+# update the dns server for the subnet
+neutron subnet-update --dns-nameserver 172.25.250.254 dev_pubsubnet
+
+# list networks
+neutron net-list
+
+# list subnets
+neutron subnet-list
+
+# delete network - need to delete subnets first
+neutron subnet-delete dev_secondsubnet
+neutron net-delete dev_secondnet
+
+#################################
+#################################
+#################################
+#################################
+
+Day 3
+
+LAB - Managing Routers
+
+# add networks
+neutron net-create dev_privnet1
+
+# Create subnet for previous network
+neutron subnet-create dev_privnet1 10.10.10.0/24 --name dev_privsubnet1
+
+# Create a router
+neutron router-create dev_router
+
+# Attach subnets to router
+neutron router-interface-add dev_router dev_privnet1
+
+# list nets
+neutron net-list
+
+# set gateway for router
+neutron router-gateway-set dev_router dev_pubnet
+
+# check that gateway has been properly added
+neutron router-port-list dev_router
+
+# list present routers - setting columns
+neutron router-port-list -c id -c name
+
+# list specific router
+neutron router-port-list dev_oldrouter
+
+# show specifics of router
+neutron router-show dev_oldrouter
+
+# show network id of router - uses network_id from last command output, this will output the network_name
+neutron net-show <network_id>
+
+# remove router
+neutron router-gateway-clear dev_oldrouter dev_oldpubnet
+neutron router-delete dev_oldrouter
+
+# delete subnet
+neutron subnet-delete dev_oldpubsubnet
+neutron net-delete dev_oldpubet
+
+# list routers
+neutron router-list -c id -c name
+
+
+LAB - Verifying OpenStack Networking Functionality - pg 151
+
+# list networks
+neutron net-list
+
+# list subnets
+networks subnet-list
+
+# list routers - with formatting
+neutron router-list -c id -c -name
+
+# From overcloud controller access the namespace associated with the networks
+
+## get auth URL
+echo $OS_AUTH_URL
+ssh -i overcloud.pem heat-admin@192.168.0.11
+
+# list the namespaces on the contoller
+sudo ip netns list
+
+# list ips available in a particular namespace
+sudo ip netns exex <uuid of qdhcp> ip addr show
+
+# list the ports available for the router - should show ips on networks it manages/is a part of
+sudo ip nets exec <uuid of qrouter> ip addr show
+
+# create servers
+openstack server create --image small --flavor m2.small --security-group dev_sg --key-name dev_key --nic net-id=dev_privnet1 dev_instance1 --wait
+
+openstack server create --image small --flavor m2.small --security-group dev_sg --key-name dev_key --nic net-id=dev_privnet2 dev_instance2 --wait
+
+# list servers - will show ip addresses
+openstack server list
+
+# log back into the overcloud controller
+ssh -i overcloud.pem heat-admin@192.168.0.11
+
+# ping servers from the contoller
+sudo ip netns exec <network uuid> ping -c4 <ip of server>
+
+# list floating ips
+openstack ip floating list
+
+# add floating ip to instances
+openstack ip floating add <ip> <instance>
+
+
+LAB - Managing Networks - pg 158
+
+- create 2 private/tenant networks and subnets
+- create a router
+- attach priv network subnets to router
+- create an external facing network and attach it as gateway to the router
+- provision a server in each network
+- verify the connectivity between the servers via ping to the external network
+- verify the NAT rules on the router via the namespace
+- delete the network, subnet, and router
+
+
+source overcloudrc
+source /etc/bash_completion.d/neutron.bash_completion
+
+neutron net-create prodnet1
+neutron net-create prodnet2
+neutron net-create prodpubnet
+neutron subnet-create prodnet1 192.168.1.0/24 --name prodsubnet1
+neutron subnet-create prodnet2 192.168.2.0/24 --name prodsubnet2
+neutron subnet-update prodsubnet1 --dns-nameserver 172.25.250.254
+neutron subnet-update prodsubnet2 --dns-nameserver 172.25.250.254
+neutron net-update prodpubnet --router:external
+neutron subnet-create prodpubnet 172.25.250.0/24 --name prodpubsubnet --disable-dhcp --allocation-pool start=172.25.250.130,end=172.25.250.199 --gateway 172.25.250.254 --dns-nameserver 172.25.250.254
+neutron router-create prodrouter
+neutron router-interface-add prodrouter prodsubnet1
+neutron router-interface-add prodrouter prodsubnet2
+neutron router-gateway-set prodrouter prodpubnet
+openstack server create --image small --flavor m2.small --security-group prodsg --key-name prodkey --nic net-id=prodnet1 prodinstance1
+openstack server create --image small --flavor m2.small --security-group prodsg --key-name prodkey --nic net-id=prodnet2 prodinstance2
+openstack ip floating create prodpubnet
+openstack ip floating create prodpubnet
+openstack server list
+openstack ip floating add 172.25.250.131 prodinstance1
+openstack ip floating add 172.25.250.132 prodinstance2
+openstack ip floating list
+openstack server list
+ssh -i prodkey.pem cloud-user@172.25.250.131
+ping -c4 192.168.2.3
+ping -c4 workstation.lab.example.com
+exit
+echo $OS_AUTH_URL
+ssh -i overcloud.pem heat-admin@192.168.0.11
+# list netns devices
+sudo ip netns list
+# show ip addr for qrouter
+sudo ip netns exec <qrouter id> ip addr show
+# ensure nats are correct
+sudo ip netns exec <qrouter id> iptables -t nat -L
+exit
+# on workstation
+# list networks
+neutron net-list
+# list subnets
+neutron subnet-list
+# list routers
+neutron router-list -c id -c name
+
+
+# delete prod-oldrouter (need to delete all associations first)
+## list ports
+neutron router-port-list prod-oldrouter
+
+## delete prod-subnet from prod-oldrouter
+neutron	router-interface-delete prod-oldrouter prod-oldsubnet
+
+## delete prod-oldsubnet before deleting the prod-oldnet
+neutron subnet-delete prod-oldsubnet
+
+## delete prod-oldnet
+neutron net-delete prod-oldnet
+
+## delete old router - can now be deleted since no ports are attached to it
+neutron router-delete prod-oldrouter
+
+
+LAB - Configuring External Netowork - pg 183 - skipped
+
+# commands for floating IP
+openstack ip floating add
+openstack ip floating create
+openstack ip floating delete
+openstack ip floating pool list
+openstack ip floating remove
+
+LAB - Managing Floating IP Addresses - pg 195 - skipped
+LAB - Verifying Floatin IP Address Functionality - pg 201 - skipped
+
+LAB - Managing Floating IP Addresses - pg 203 (get commands for reference)
+
+
+
+LAB - Managing Security Groups and Rules - pg 216
+
+# create a security group
+openstack security group create devsecgroup
+
+# check if there are rules associated to group
+openstack security group rule list devsecgroup
+
+# create a rule within a security group - port 22 from anywhere
+openstack security group rule create --proto tcp --src- ip 0.0.0.0/0 --dst-port 22 devsecgroup
+
+# create another rule within a security group sourcing a different security group - allow port 80 
+nova secgroup-add-group-rule devsecgroup devsecondsecgroup tcp 80 80
+
+# check that group has rules associated
+openstack security group rule list devsecgroup
+
+# list rules of devsecondsecgroup
+openstack security group rule list devsecondsecgroup
+
+# Delete the rule associated with devsecondsecgroup using the UUID
+openstack security group rule delete <uuid>
+
+# check the security group for deleted rule
+openstack security group rule list devsecondsecgroup
+
+# Delete security group
+openstack security group delete devthirdsecgroup
+
+
+LAB - Verifying Security Group Rules - pg 220 - skipped but grabbed commands
+
+# create instance 
+openstack server create --flavor m2.small --image devimage --key-name devkeypair --nic net-id=devnet devvm
+
+# list server
+openstack server list
+
+# allocate floating IP from ext IP pool
+openstack ip floating create ext
+
+# assign floating IP to instance
+openstack ip floating add 172.25.250.51 devvm
+
+# test ssh to floating IP
+ssh -o ConnectTimeout=5 -i /home/student/dev/devkeypair.pem cloud-user@172.25.250.51
+
+# launch new instance
+openstack server create --flavor m2.small --security-group devsecgroup --image devimage --key-name devkeypair --nic net-id=devnet devsecondvm
+
+# allocate floating IP from ext
+openstack ip floating create ext
+
+# assign floating IP to new instance
+openstack ip floating add 172.25.250.52 devsecondvm
+
+# test ssh
+ssh -i /home/student/dev/devkeypair.pem cloud- user@172.25.250.52
+
+
+LAB - Managing Security Groups - pg 224 - skipped
+
+LAB - Launching and Deleting an Instance - pg 244 - skipped
+
+LAB - Customizing an Instance - pg 253
+
+LAB - Verifying Customization for Instances - pg 257
+
+LAB - Managing Instances - pg 260
+
+openstack keypair list
+openstack net list
+openstack image list
+openstack flavor list
+
+vi /home/student/lab/web-db-server
+#!/bin/bash
+yum install -y httpd mariadb-server
+systemctl start httpd
+systemctl start mariadb
+systemctl enable httpd
+systemctl enable mariadb
+echo "This instance was customized by cloud-init on $(date -R)."
+
+openstack server create --image small --flavor m2.small --nic net-id=lab_privnet --key-name lab_key1 --user-date /home/student/lab/web-db-server lab_instance
+
+openstack ip floating create
+opentstack ip floating add 172.21.250.51 lab_instance
+
+openstack server list
+ssh -i lab/lab_key1.pem cloud-user@172.25.250.51
+
+
+openstack server delete lab_removeme
+
+
+LAB - Adding Additional Compute Node - pg 273
+
+LAB - Verifying Additional Compute Nodes - pg 285
+
+
+LAB - Migrating Instances Between Compute Nodes - pg 292
+nova service-list --binary nova-compute
+openstack server show dev_test-nodes
+openstack flavor show m2.small
+openstack hypervisor show overcloud-novacompute-0.localdomain -c free_ram_mb -c free_disk_gb
+openstack server migrate --shared-migration dev_test-nodes
+openstack server list
+# wait until server says "VERIFY_RESIZE"
+# then activate with below
+nova resize-confirm dev_test-nodes
+openstack server show dev_test-nodes
+nova migration-list
+# check if server is pingable
+ping -c3 172.25.250.51
+
+LAB - Customizing a PreBuilt Image - pg 322
+ssh stack@director
+cd /home/stack/images/
+sudo -i
+curl -s http://materials.example.com/web.img -o /home/stack/ images/web.img
+sed -i 's/cache-url//gi' /usr/share/diskimage-builder/ elements/rhel7/element-deps
+sed -i '13ichmod 0440 /etc/sudoers.d/wheel' /usr/share/ diskimage-builder/elements/rpm-distro/pre-install.d/00-fix-requiretty 2>/dev/null
+mkdir -p /usr/share/diskimage-builder/elements/rhel7/post-install.d
+
+vi /usr/share/diskimage-builder/elements/rhel7/post-install.d/01-include-script
+###
+ #!/bin/bash
+echo 'Hello world' >> /root/hello-world.txt
+###
+chmod +x /usr/share/diskimage-builder/elements/rhel7/ post-install.d/01-include-script
+exit
+# export vars
+cd images
+export NODE_DIST=rhel7
+export DIB_LOCAL_IMAGE=web.img
+export DIB_YUM_REPO_CONF="/etc/yum.repos.d/ openstack.repo /etc/yum.repos.d/rhel_dvd.repo"
+# build disk image with python-django-compressor and the image script
+disk-image-create vm rhel7 -n -p python-django-compressor -a amd64 -o test-web.img > /dev/null 2>&1 | tee diskimage-build.log
+
+
+LAB - Verifying an image - pg 328
+
+# Install guestfish
+sudo yum -y install libguestfs-tools
+
+# check if image is ok with guestfish shell
+guestfish -a test-web.img.qcow2 -i
+
+# Drops to guestfish shell
+## check for python-django-compressor install
+><fs> tail /var/log/yum.log
+## check if hello-world.txt was created
+><fs> cat /root/hello-world.txt
+# exit shell
+><fs> exit
+
+source overcloudrc
+
+# upload image to glance
+openstack image create --disk-format qcow2 --container- format bare --public --file test-web.img.qcow2 test-web
+
+# create server from image
+openstack server create --flavor m2.small --key-name dev_key1 --nic net-id=dev_privnet --image test-web dev_instance --wait
+
+# add floating ip to dev_instance
+openstack ip floating add 172.25.250.51 dev_instance
+
+# ping floating ip
+ping -c4 172.25.250.51
+
+# from workstation thinglogon and check configs
+ssh -i dev/dev_key1.pem cloud-user@172.25.250.51
+yum list python-django-compressor
+
+
+
+
+LAB - Deploying redhat openstack (pg 348)
+
+
+LAB - Verifying the undercloud (pg 352)
+
+
+
+
+
+#################################
+#################################
+#################################
+#################################
+
+Day 5
+
+LAB - Scaling out and Scaling In Automatically (428)
+
+
+LAB - Deploying Scalable Stacks
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
