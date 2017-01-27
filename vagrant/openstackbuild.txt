@@ -2,5 +2,7 @@
 Download CentOS 7 install (for speed I chose a minimal mirror) - https://www.centos.org/download/
 Spin up test VM - 2 GB RAM, dual core cpu
 Partition drives as needed (created boot, root, swap)
-Follow latest rdo project install guidelines - https://www.rdoproject.org/install/quickstart/
-
+Follow latest rdo project install guidelines - https://www.rdoproject.org/install/quickstart/ (DO NOT USE PACKSTACK INSTALL METHOD - USE TRIPLEO Install method)
+Need to have multiple VMS and configure a NAT Network between them with VBox
+  VBoxManage natnetwork add --netname natnet1 --network "192.168.15.0/24" --enable --dhcp on
+Copy SSH keys between the two hosts (deployment and openstack1)
