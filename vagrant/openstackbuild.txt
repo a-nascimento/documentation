@@ -8,3 +8,9 @@ Follow latest rdo project install guidelines - https://www.rdoproject.org/instal
 Need to have multiple VMS and configure a NAT Network between them with VBox
   VBoxManage natnetwork add --netname natnet1 --network "192.168.15.0/24" --enable --dhcp on
 Copy SSH keys between the two hosts (deployment and openstack1)
+ssh-keygen
+ssh-copy-id root@openstack1.andrew
+systemctl disable NetworkManager firewalld
+systemctl stop NetworkManager firewalld
+systemctl enable netowrk
+systemctl start netowrk
