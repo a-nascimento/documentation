@@ -7,8 +7,52 @@ Follow latest rdo project install guidelines - (DO NOT USE PACKSTACK INSTALL MET
 
 RDOProject quickstart failed so trying the following: http://docs.openstack.org/developer/tripleo-docs/environments/environments.html
 
-Need to have multiple VMS and configure a NAT Network between them with VBox
-  VBoxManage natnetwork add --netname natnet1 --network "192.168.15.0/24" --enable --dhcp on
-Copy SSH keys between the two hosts (deployment and openstack1)
+http://docs.openstack.org/developer/tripleo-docs/
+
+Used Parallels
+  Copy SSH keys
   ssh-keygen ; ssh-copy-id root@<node>.andrew
   systemctl disable NetworkManager firewalld ; systemctl stop NetworkManager firewalld ; systemctl enable network ; systemctl start network
+  FQDN set to undercloud.local
+  sudo yum update -y
+  sudo useradd stack ; sudo passwd stack ; sudo echo "stack ALL=(root) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/stack ; sudo chmod 0440 /etc/sudoers.d/stack
+  su - stack
+  sudo curl -L -o /etc/yum.repos.d/delorean-mitaka.repo https://trunk.rdoproject.org/centos7-mitaka/current/delorean.repo
+  sudo curl -L -o /etc/yum.repos.d/delorean-deps-mitaka.repo http://trunk.rdoproject.org/centos7-mitaka/delorean-deps.repo
+  sudo yum -y install --enablerepo=extras centos-release-ceph-hammer
+  sudo sed -i -e 's%gpgcheck=.*%gpgcheck=0%' /etc/yum.repos.d/CentOS-Ceph-Hammer.repo
+  sudo yum install -y instack-undercloud  #this sets up the undercloud machine
+  # Spawns 2 baremetal and and instack machine to be used as the undercloud
+  export NODE_DIST=centos7 ; export NODE_COUNT=2 ; export NODE_CPU=1 ; export NODE_MEM=1024 ; export NODE_DISK=40 ; export UNDERCLOUD_NODE_CPU=2 ; export UNDERCLOUD_NODE_MEM=2048 ; export UNDERCLOUD_NODE_DISK=30
+  instack-virt-setup #This sets up the rest of the stack
+  
+  ssh root@<instack server ip>
+  # if needed add stack user but it should be there
+  sudo useradd stack ; sudo passwd stack  # specify a password ; sudo echo "stack ALL=(root) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/stack ; sudo chmod 0440 /etc/sudoers.d/stack
+  su - stack
+  # Add stable branch repos (in this case mitaka)
+  sudo curl -L -o /etc/yum.repos.d/delorean-mitaka.repo https://trunk.rdoproject.org/centos7-mitaka/current/delorean.repo
+  sudo curl -L -o /etc/yum.repos.d/delorean-deps-mitaka.repo http://trunk.rdoproject.org/centos7-mitaka/delorean-deps.repo
+  sudo yum -y install --enablerepo=extras centos-release-ceph-hammer
+  sudo sed -i -e 's%gpgcheck=.*%gpgcheck=0%' /etc/yum.repos.d/CentOS-Ceph-Hammer.repo
+  sudo yum -y install yum-plugin-priorities
+  sudo yum install -y python-tripleoclient
+  openstack undercloud install
+  # Ensure that the stackrc and undercloud-passwords.conf files were generated
+  # Any PW set in undercloud.conf will take precedence over the undercloud-passwords.conf file
+  # remove delorean repos
+  sudo rm /etc/yum.repos.d/delorean*
+  #enable latest rdo repos for mitaka
+  sudo curl -L -o /etc/yum.repos.d/delorean-mitaka.repo https://trunk.rdoproject.org/centos7-mitaka/current/delorean.repo
+  sudo curl -L -o /etc/yum.repos.d/delorean-deps-mitaka.repo http://trunk.rdoproject.org/centos7-mitaka/delorean-deps.repo
+  sudo yum -y install --enablerepo=extras centos-release-ceph-hammer
+  sudo sed -i -e 's%gpgcheck=.*%gpgcheck=0%' /etc/yum.repos.d/CentOS-Ceph-Hammer.repo
+  # stop undercloud service to prep for package upgrade
+  sudo systemctl stop openstack-* ; sudo systemctl stop neutron-* ; sudo systemctl stop openvswitch
+  openstack undercloud upgrade
+
+includepkgs=diskimage-builder,instack,instack-undercloud,os-apply-config,os-cloud-config,os-collect-config,os-net-config,os-refresh-config,python-tripleoclient,openstack-tripleo-common,openstack-tripleo-heat-templates,openstack-tripleo-image-elements,openstack-tripleo,openstack-tripleo-puppet-elements,openstack-puppet-modules,openstack-tripleo-ui,puppet-*
+EOF"  
+  
+  
+
