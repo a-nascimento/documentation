@@ -1,0 +1,100 @@
+lab deploy-overcloud setup
+
+ssh stack@director
+
+sudo yum -y install rhosp-director-images rhosp-director-images-ipa
+
+
+mkdir images
+
+cp /usr/share/rhosp-director-images/overcloud-full-latest-8.0.tar images/
+
+cp /usr/share/rhosp-director-images/ironic-python-agent-latest-8.0.tar images/
+
+cd images
+
+for tarfile in *.tar; do tar -xf $tarfile; done
+
+cd ..
+
+source ~/stackrc
+
+openstack overcloud image upload --image-path ~/images
+
+openstack image list
+
+ls -l /httpboot/ | grep agent
+
+neutron subnet-list
+
+read -p "Please copy Network Id from last command and paste it here : " NET_ID
+
+neutron subnet-update $NET_ID --dns-nameserver 172.25.250.254
+
+wget http://materials.example.com/instackenv-twonodes.json
+
+more instackenv-twonodes.json
+
+openstack baremetal import --json instackenv-twonodes.json
+
+openstack baremetal configure boot
+
+openstack image list
+
+
+for i in $(ironic node-list | grep -v UUID |awk '{print $2}') ; do ironic node-show $i | grep -1 deploy; echo ; done
+
+ironic node-list
+
+openstack baremetal introspection bulk start
+
+openstack flavor create --id auto --ram 2048 --disk 10 --vcpus 2 baremetal
+
+openstack flavor create --id auto --ram 4096 --disk 20 --vcpus 2 compute
+
+openstack flavor create --id auto --ram 4096 --disk 30 --vcpus 2 control
+
+openstack flavor set --property "cpu_arch"="x86_64" --property "capabilities:boot_option"="local" baremetal
+
+openstack flavor set --property "cpu_arch"="x86_64" --property "capabilities:profile"="compute" --property "capabilities:boot_option"="local" compute
+
+
+openstack flavor set --property "cpu_arch"="x86_64" --property "capabilities:profile"="control" --property "capabilities:boot_option"="local" control
+
+
+ironic node-update compute1 add properties/capabilities='profile:compute,boot_option:local'
+
+ironic node-update controller add properties/capabilities='profile:control,boot_option:local'
+
+openstack overcloud profiles list
+
+mkdir templates
+
+cp -rf /usr/share/openstack-tripleo-heat-templates/* templates
+
+curl -s -O http://materials.example.com/overcloud-heat-templates/templates.tar.bz2
+
+tar -xvjpf templates.tar.bz2
+
+ironic node-list
+
+source ~/stackrc
+
+openstack overcloud deploy --templates ~/templates --control-scale 1 --compute-scale 1 --control-flavor control --compute-flavor compute --neutron-tunnel-types vxlan --neutron-network-type vxlan -e ~/templates/compute-extraconfig.yaml -e ~/templates/environments/network-isolation.yaml -e ~/templates/network-environment.yaml -e ~/templates/pre-config-fix.yaml
+
+
+openstack server list
+
+ssh heat-admin@172.25.250.24
+
+exit
+
+wget http://materials.example.com/neutron-postdeploy.sh
+
+chmod a+x neutron-postdeploy.sh
+
+./neutron-postdeploy.sh
+
+exit
+
+lab deploy-overcloud grade
