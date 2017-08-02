@@ -10,11 +10,19 @@ RDOProject quickstart failed so trying the following: http://docs.openstack.org/
 http://docs.openstack.org/developer/tripleo-docs/
 
 Used Parallels
-  Copy SSH keys
-  ssh-keygen ; ssh-copy-id root@<node>.andrew
-  systemctl disable NetworkManager firewalld ; systemctl stop NetworkManager firewalld ; systemctl enable network ; systemctl start network
-  FQDN set to undercloud.local
-  sudo yum update -y
+  - Download and Install Vagrant
+      https://www.vagrantup.com/downloads.html
+  - Install Vagrant Parallels plugin
+      vagrant plugin install vagrant-parallels
+  - Build minimal Parallels CentOS VM
+  - Copy SSH keys
+      ssh-keygen ; ssh-copy-id root@<node>.andrew
+  - disable some startup services
+      systemctl disable NetworkManager firewalld ; systemctl stop NetworkManager firewalld ; systemctl enable network ; systemctl start network
+  - FQDN set to undercloud.local - undercloud.andrew
+  - Full patch
+      sudo yum update -y
+  - Add stack user and sudoers file
   sudo useradd stack ; sudo passwd stack ; sudo echo "stack ALL=(root) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/stack ; sudo chmod 0440 /etc/sudoers.d/stack
   su - stack
   sudo curl -L -o /etc/yum.repos.d/delorean-mitaka.repo https://trunk.rdoproject.org/centos7-mitaka/current/delorean.repo
