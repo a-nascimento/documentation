@@ -1,0 +1,55 @@
+
+###
+adclient.binding.refresh.force: true
+dns.dc.surveysampling.com: ctproddc01.surveysampling.com
+dns.gc.surveysampling.com: ctproddc01.surveysampling.com
+
+adflush --force
+
+service centrifydc restart
+###
+
+###
+source ~/openstack-projects/admin-openrc.sh ; INSTANCE_ID_BY_VOLUME_ARR=($(openstack volume list --all | grep /dev/vda | awk -F'|' '{print $6}' | awk '{print $3}')) ; INSTANCE_ID_BY_VOLUME=$(for x in ${INSTANCE_ID_BY_VOLUME_ARR[@]} ; do echo -n "${x}|" ; done) ; INSTANCE_ID_BY_VOLUME=$(echo ${INSTANCE_ID_BY_VOLUME} | sed s'/.$//') ; openstack server list --all | egrep -v ${INSTANCE_ID_BY_VOLUME}
+
+
+assignee in (andrew_nascimento, Andrew_Guirguis, dylan_gladstone, dharminder_singh) AND Capitalizable = EMPTY AND type not in subTaskIssueTypes() AND worklogDate >= startofmonth(-1) ORDER BY assignee ASC, key ASC, priority DESC, updated DESC
+###
+
+
+###
+openstack server create --flavor m1.large --image Packer_centos_7-latest --security-group 'default-bind' --security-group 'default-TOOLS' --security-group 'default' --security-group 'default-www' --nic net-id=48ee988b-6bde-4824-b80a-7fc4c600b5bc antest01.utl.drt073.tools.priv
+
+openstack volume create --type pure --size 8 --image Packer_centos_7-latest --description antest-boot-volume antest-boot-volume
+
+openstack server create --flavor m1.large --image Packer_centos_7-latest --security-group 'default-bind' --security-group 'default-TOOLS' --security-group 'default' --security-group 'default-www' --block-mapping-device pure --nic net-id=48ee988b-6bde-4824-b80a-7fc4c600b5bc antest01.utl.drt073.tools.priv
+###
+
+Discover:
+iscsiadm -m discovery -t sendtargets -p 10.1.19.253
+
+
+Logout:
+iscsiadm -m node -T iqn.2007-11.com.nimblestorage:ctvertica05-backup-v1051fe8518b1c51b.00000082.08e03b9e -p 10.1.19.253 -u
+
+vi /etc/fstab
+
+iscsiadm -m session
+
+mount /vertica_archive
+
+#####
+
+tsql -S 
+
+tsql -H sqlcls -p 10050 -U zabbix
+
+####
+
+openstack server create --flavor m1.large --image Packer_centos_7-latest --security-group 'default-bind' --security-group 'default-TOOLS' --security-group 'default' --security-group 'default-www' --nic net-id=48ee988b-6bde-4824-b80a-7fc4c600b5bc antest01.utl.drt073.tools.priv
+
+openstack volume create --type pure --size 8 --image Packer_centos_7-latest --description antest-boot-volume antest-boot-volume
+
+openstack server create --flavor m1.large --image Packer_centos_7-latest --security-group 'default-bind' --security-group 'default-TOOLS' --security-group 'default' --security-group 'default-www' --block-mapping-device pure --nic net-id=48ee988b-6bde-4824-b80a-7fc4c600b5bc antest01.utl.drt073.tools.priv
+
+####

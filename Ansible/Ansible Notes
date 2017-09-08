@@ -1,0 +1,146 @@
+Ansible Notes
+
+1. Var types
+	inventory
+	role
+	play
+	task
+	extra - supplied on CLI when running ansible-playbook (extra-vars). key=value, quoted JSON, or YAML file
+2. Var precedence
+	Extra vars (from command line) always win
+	Connection variables defined in inventory (can be overridden by set_fact in plays)
+	Most everything else (last supplied var wins)
+		Command line switches
+		Play variables
+		Task variables
+		Role variables (not defaults)
+	Rest of the variables defined in inventory
+	Facts discovered about a system
+	Role defaults
+3. Merging python hashes
+	hash_behavior
+		replace
+		merge
+4. Verbosity – control what is  outputted
+5. Task states: ok , fatal, changed
+6. Logging : use log_path
+7. Var introspection via debug module
+Common challenge is knowing what a variable evaluates to
+8. Ansible troubleshooting
+9. Ansible.Config location and precedence (env var, cwd, home, /etc/ansible)
+10. Passwords/secrets -  avoiding printing them
+
+The How? questions
+11. Print a variable
+12. How many connections at once is possible using ansible-playbook
+run
+13. How many nodes at once can be configured
+14. Dry run
+15. Ansible inventory limiting
+16.  handlers
+17. Playbook parsing order
+	Top Down Execution
+		Variable loading
+		Fact gathering
+		The pre_tasks execution
+		Handlers notified from the pre_tasks execution
+		Roles execution
+		Tasks execution
+		Handlers notified from roles or tasks execution
+		The post_tasks execution
+		Handlers notified from post_tasks execution
+	meta - can be used to trigger handler processing
+
+
+Performance
+	ControlPersist for SSH so that it ansible doesn't need to open new connections.  Typically ansible will open at least 3 connections per task
+	You can also use pipelining in ansible config file
+		[ssh_connection]
+		pipelining=true
+	Forks - default is 5, can adjust with -f or can adjust it with an ansible config file - quantity of hosts will ansible will deploy to during a given run
+
+Access External Data
+
+Task Status
+	ok
+	fail
+	change
+	skip
+
+Run Task - is something true?
+	Use conditional
+	-Declarative vs. Imperative
+		declarative
+			an approach that states the final state (instead of the steps to get there)
+		test modules
+			assert
+			fail
+			wait_for
+
+Idempotency - running task multiple times to yield the same result (ensures things haven't changed)
+
+ansible-vault
+	--ask-vault-pass
+	--vault-password-file
+
+Jinja Templates
+	{{ my_firstname | lower }}
+	String Methods
+		endswith
+		startswith
+		split
+		rsplit
+		...
+	Compare
+		== != > < >= <=
+	Logic
+		and or ...
+How does ansible define failure
+	most modules have an opinion and return JSON to tell Ansible
+	ignore_errors (sledgehammer)
+	failed_when (scalpel)
+
+How does ansible define change
+	most know when they have changed something but not all
+	exceptions
+		command
+		shell
+		raw
+		script
+			changed_when helps here - tell a module how to interpret a change
+		options for files - for existence
+			creates - if exists and used then work done and consider ok
+			removes - if the path does NOT exist and was used considered ok
+		surpress change
+			changed_when: false
+
+
+JSON - data structure that ansible can report on or be used within a module
+
+Ansible Roles
+	Roles, Tasks, Handles
+	roles are
+		tunable
+		reusable
+		portable
+		shareable
+	Tasks
+		inlude operater
+		passing variables to included tasks
+		passing complex data to included tasks
+		conditional task includes
+		tagging included tasks
+		including handlers
+	Including variables
+		vars_file
+		dynamic vars_file inclusion
+		include_vars
+		ansible-playbook --extra-vars
+	Including Playbooks - beware the limitatsion vs. task inclusion
+		can't perform variable substitution
+		can't apply conditionals
+		can't apply tags
+
+
+
+
