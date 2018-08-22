@@ -1,0 +1,16 @@
+What is the purpose of the APP?
+Does it need to be externally facing?
+How business critical?
+Can we separate the MySQL server from the Application server?
+What is the user base?
+Is there a locality issue?
+Who maintains the code base? Do we need to worry about the release schedule?
+Can the application be containerized?
+What other applications integrate with this?
+What ports need to be exposed?
+Sizing requirements?
+Patching schedule?
+Backups?
+Splunk logging?
+Is there ansible code for LAMP stack buildouts?
+What is the remediation deadline?
