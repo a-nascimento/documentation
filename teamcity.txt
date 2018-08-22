@@ -1,0 +1,15 @@
+How to add key to project:
+Navigate to desired project
+Select "SSH Keys" and upload
+In order to reference key in build step - select "Build Features"
+"Add build feature"
+Select "SSH Agent"
+Select Desired ssh key
+
+SSH Disable host key checking: -o StrictHostKeyChecking=no
+Add a build parameter to the project
+ex.
+Name: stricthostkeychecking.no
+Kind: Configuration parameter
+Value: -o StrictHostKeyChecking=no
+Reference parameter (variable) in build steps - %stricthostkeychecking.no%
