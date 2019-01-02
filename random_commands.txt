@@ -53,3 +53,8 @@ openstack volume create --type pure --size 8 --image Packer_centos_7-latest --de
 openstack server create --flavor m1.large --image Packer_centos_7-latest --security-group 'default-bind' --security-group 'default-TOOLS' --security-group 'default' --security-group 'default-www' --block-mapping-device pure --nic net-id=48ee988b-6bde-4824-b80a-7fc4c600b5bc antest01.utl.drt073.tools.priv
 
 ####
+
+# Append string to end of line that starts with docker using sudo sh -c
+sudo sh -c "sed -i 's/^docker:.*/&,mschueler/' /etc/group" && cat /etc/group && exit
+
+###
