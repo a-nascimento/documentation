@@ -1,0 +1,17 @@
+https://forums.freenas.org/index.php?threads/useful-commands.30314/
+
+zpool status -v     # mirror states
+zpool iostat 1      # shows disks IO
+zpool list		    # Lists all main pools
+
+zfs list				# Lists all volumes
+zfs list -t snapshot	# Lists all snapshots
+
+smartctl -t long /dev/da#   # executes a long test (replace "long" by "short" for a short test)
+
+glabel status  # shows gptids and devices names
+
+# Check/Release/Delete Hung Snap
+zfs holds <snapshot name>					# Check
+zfs release -r freenas:repl <snapshot name>	# Release
+zfs destroy <snapshot name>					# Delete
