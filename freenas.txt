@@ -7,6 +7,8 @@ zpool list		    # Lists all main pools
 zfs list				# Lists all volumes
 zfs list -t snapshot	# Lists all snapshots
 
+smartctl -a /dev/sda1
+for x in `ls /dev/da*` ; do smartctl -a $x ; done
 smartctl -t long /dev/da#   # executes a long test (replace "long" by "short" for a short test)
 
 glabel status  # shows gptids and devices names
